@@ -1,0 +1,5 @@
+BreakBeforeBraces: Attach
+AlignAfterOpenBracket: DontAlign
+AllowShortIfStatementsOnASingleLine: true
+IndentCaseLabels: false
+ColumnLimit: 0
