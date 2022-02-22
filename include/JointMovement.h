@@ -1,12 +1,12 @@
-#ifndef _ROS_csjbot_alice_JointMovement_h
-#define _ROS_csjbot_alice_JointMovement_h
+#ifndef _ROS_csjbot_alice_ros_master_JointMovement_h
+#define _ROS_csjbot_alice_ros_master_JointMovement_h
 
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include "ros/msg.h"
 
-namespace csjbot_alice
+namespace csjbot_alice_ros_master
 {
 
   class JointMovement : public ros::Msg
@@ -194,7 +194,7 @@ namespace csjbot_alice
      return offset;
     }
 
-    const char * getType(){ return "csjbot_alice/JointMovement"; };
+    const char * getType(){ return "csjbot_alice_ros_master/JointMovement"; };
     const char * getMD5(){ return "f2a569bc893dff1897c77386bfc811d0"; };
 
   };

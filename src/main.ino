@@ -221,7 +221,7 @@ void reset_cb(const std_msgs::Empty &msg) {
 ros::Subscriber<std_msgs::Empty> *reset_subscriber =
     new ros::Subscriber<std_msgs::Empty>("csjbot_alice_joints_reset", &reset_cb);
 
-void moveTo_cb(const csjbot_alice::JointMovement &msg) {
+void moveTo_cb(const csjbot_alice_ros_master::JointMovement &msg) {
   char buffer[100];
   sprintf(buffer, "%d|%d|%d|%d|%d|%d|%d|%d|%d",
     msg.neck,
@@ -248,8 +248,8 @@ void moveTo_cb(const csjbot_alice::JointMovement &msg) {
 ros::Publisher *joint_state_publisher =
     new ros::Publisher("csjbot_alice_joint_states", &joint_states);*/
 
-ros::Subscriber<csjbot_alice::JointMovement> *move_to_subscriber =
-    new ros::Subscriber<csjbot_alice::JointMovement>("csjbot_alice_joints_move_to", &moveTo_cb);
+ros::Subscriber<csjbot_alice_ros_master::JointMovement> *move_to_subscriber =
+    new ros::Subscriber<csjbot_alice_ros_master::JointMovement>("csjbot_alice_joints_move_to", &moveTo_cb);
 
 void setup() {
   ros_handle->initNode();
