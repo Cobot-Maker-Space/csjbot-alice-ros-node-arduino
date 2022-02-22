@@ -219,9 +219,9 @@ void reset_cb(const std_msgs::Empty &msg) {
 }
 
 ros::Subscriber<std_msgs::Empty> *reset_subscriber =
-    new ros::Subscriber<std_msgs::Empty>("lily_joints_reset", &reset_cb);
+    new ros::Subscriber<std_msgs::Empty>("csjbot_alice_joints_reset", &reset_cb);
 
-void moveTo_cb(const lily::JointMovement &msg) {
+void moveTo_cb(const csjbot_alice::JointMovement &msg) {
   char buffer[100];
   sprintf(buffer, "%d|%d|%d|%d|%d|%d|%d|%d|%d",
     msg.neck,
@@ -246,10 +246,10 @@ void moveTo_cb(const lily::JointMovement &msg) {
 
 /*std_msgs::Int64MultiArray joint_states;
 ros::Publisher *joint_state_publisher =
-    new ros::Publisher("lily_joint_states", &joint_states);*/
+    new ros::Publisher("csjbot_alice_joint_states", &joint_states);*/
 
-ros::Subscriber<lily::JointMovement> *move_to_subscriber =
-    new ros::Subscriber<lily::JointMovement>("lily_joints_move_to", &moveTo_cb);
+ros::Subscriber<csjbot_alice::JointMovement> *move_to_subscriber =
+    new ros::Subscriber<csjbot_alice::JointMovement>("csjbot_alice_joints_move_to", &moveTo_cb);
 
 void setup() {
   ros_handle->initNode();
