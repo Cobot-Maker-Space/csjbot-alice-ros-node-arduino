@@ -31,7 +31,7 @@ private:
   void reset_run_b();
 
 protected:
-  AccelStepper stepper;
+  AccelStepper *stepper;
   void (Stepper::*run_func)() = NULL;
   void moveTo_run();
 
@@ -54,18 +54,18 @@ Stepper::Stepper(
     uint8_t stop_pin,
     uint8_t enable_pin,
     bool reverse_orientation)
-    : stepper(AccelStepper(AccelStepper::DRIVER, step_pin, dir_pin)),
+    : stepper(new AccelStepper(AccelStepper::DRIVER, step_pin, dir_pin)),
       stop_pin(stop_pin) {
   pinMode(stop_pin, INPUT);
-  stepper.setEnablePin(enable_pin);
-  stepper.setPinsInverted(reverse_orientation, false, true);
-  stepper.enableOutputs();
+  stepper->setEnablePin(enable_pin);
+  stepper->setPinsInverted(reverse_orientation, false, true);
+  stepper->enableOutputs();
 }
 
 void Stepper::reset_run_a() {
   if (digitalRead(stop_pin) != 1) {
-    stepper.move(1);
-    stepper.run();
+    stepper->move(1);
+    stepper->run();
   } else {
     run_func = &reset_run_b;
   }
@@ -73,24 +73,24 @@ void Stepper::reset_run_a() {
 
 void Stepper::reset_run_b() {
   if (digitalRead(stop_pin) == 1) {
-    stepper.move(-1);
-    stepper.run();
+    stepper->move(-1);
+    stepper->run();
   } else {
-    stepper.setCurrentPosition(0);
+    stepper->setCurrentPosition(0);
     run_func = NULL;
   }
 }
 
 void Stepper::moveTo_run() {
-  if (!stepper.run()) {
+  if (!stepper->run()) {
     run_func = NULL;
   }
 }
 
 void Stepper::reset() {
-  stepper.setMaxSpeed(1000000);
-  stepper.setAcceleration(1000000);
-  stepper.setSpeed(1000000);
+  stepper->setMaxSpeed(1000000);
+  stepper->setAcceleration(1000000);
+  stepper->setSpeed(1000000);
   if (digitalRead(stop_pin) == 0) {
     run_func = &reset_run_a;
   } else {
@@ -105,7 +105,7 @@ void Stepper::run() {
 }
 
 long Stepper::getCurrentPosition() {
-  return stepper.currentPosition();
+  return stepper->currentPosition();
 }
 
 class BoundedStepper : public Stepper {
@@ -144,10 +144,10 @@ void BoundedStepper::moveTo(long target, long speed) {
   } else if (target < (-anticlockwise_bound)) {
     target = -anticlockwise_bound;
   }
-  stepper.setMaxSpeed(speed);
-  stepper.setSpeed(speed);
-  stepper.setAcceleration(speed);
-  stepper.moveTo(target);
+  stepper->setMaxSpeed(speed);
+  stepper->setSpeed(speed);
+  stepper->setAcceleration(speed);
+  stepper->moveTo(target);
   run_func = &moveTo_run;
 }
 
@@ -178,10 +178,10 @@ UnboundedStepper::UnboundedStepper(
 }
 
 void UnboundedStepper::moveTo(long target, long speed) {
-  stepper.setMaxSpeed(speed);
-  stepper.setSpeed(speed);
-  stepper.setAcceleration(speed);
-  stepper.moveTo(target);
+  stepper->setMaxSpeed(speed);
+  stepper->setSpeed(speed);
+  stepper->setAcceleration(speed);
+  stepper->moveTo(target);
   run_func = &moveTo_run;
 }
 
@@ -207,7 +207,7 @@ UnboundedStepper *right_arm = new UnboundedStepper(
     DIR_PIN_RIGHT,
     END_STOP_PIN_RIGHT,
     ENABLE_PIN,
-    false,
+    true,
     STEPS_PER_REV_RIGHT);
 
 ros::NodeHandle *ros_handle = new ros::NodeHandle();
@@ -219,20 +219,9 @@ void reset_cb(const std_msgs::Empty &msg) {
 }
 
 ros::Subscriber<std_msgs::Empty> *reset_subscriber =
-    new ros::Subscriber<std_msgs::Empty>("csjbot_alice_joints_reset", &reset_cb);
+    new ros::Subscriber<std_msgs::Empty>("reset_joints", &reset_cb);
 
-void moveTo_cb(const csjbot_alice_ros_master::JointMovement &msg) {
-  char buffer[100];
-  sprintf(buffer, "%d|%d|%d|%d|%d|%d|%d|%d|%d",
-    msg.neck,
-    msg.neck_to,
-    msg.neck_speed,
-    msg.left_arm,
-    msg.left_arm_to,
-    msg.left_arm_speed,
-    msg.right_arm,
-    msg.right_arm_to,
-    msg.right_arm_speed);
+void move_cb(const csjbot_alice::JointMovement &msg) {
   if (msg.neck) {
     neck->moveTo(msg.neck_to, msg.neck_speed);
   }
@@ -248,29 +237,15 @@ void moveTo_cb(const csjbot_alice_ros_master::JointMovement &msg) {
 ros::Publisher *joint_state_publisher =
     new ros::Publisher("csjbot_alice_joint_states", &joint_states);*/
 
-ros::Subscriber<csjbot_alice_ros_master::JointMovement> *move_to_subscriber =
-    new ros::Subscriber<csjbot_alice_ros_master::JointMovement>("csjbot_alice_joints_move_to", &moveTo_cb);
+ros::Subscriber<csjbot_alice::JointMovement> *move_to_subscriber =
+    new ros::Subscriber<csjbot_alice::JointMovement>("move_joints", &move_cb);
 
 void setup() {
+  ros_handle->getHardware()->setBaud(115200);
   ros_handle->initNode();
   ros_handle->subscribe(*reset_subscriber);
   ros_handle->subscribe(*move_to_subscriber);
   //ros_handle->advertise(*joint_state_publisher);
-
-  /*left_arm.moveTo(left_pos);
-  left_arm.setMaxSpeed(3000);
-  left_arm.setSpeed(3000);
-  left_arm.setAcceleration(3000);
-
-  right_arm.moveTo(right_pos);
-  right_arm.setMaxSpeed(3000);
-  right_arm.setSpeed(3000);
-  right_arm.setAcceleration(3000);
-
-  neck.moveTo(neck_pos);
-  neck.setMaxSpeed(5000);
-  neck.setSpeed(5000);
-  neck.setAcceleration(5000);*/
 }
 
 unsigned long next_publish_time = 0;
