@@ -2,21 +2,28 @@
 #include <ros.h>
 #include <std_msgs/Empty.h>
 #include "JointMovement.h"
+#include "JointPosition.h"
 
 #define DIR_PIN_LEFT 5
 #define STEP_PIN_LEFT 2
 #define STEPS_PER_REV_LEFT 10000
 #define END_STOP_PIN_LEFT 12
+#define MIN_SPEED_LEFT 1000
+#define MAX_SPEED_LEFT 5000
 
 #define DIR_PIN_RIGHT 6
 #define STEP_PIN_RIGHT 3
 #define STEPS_PER_REV_RIGHT 10000
 #define END_STOP_PIN_RIGHT 13
+#define MIN_SPEED_RIGHT 1000
+#define MAX_SPEED_RIGHT 5000
 
 #define DIR_PIN_NECK 7
 #define STEP_PIN_NECK 4
 #define STEPS_PER_REV_NECK 300
 #define END_STOP_PIN_NECK 11
+#define MIN_SPEED_NECK 1000
+#define MAX_SPEED_NECK 7000
 #define NECK_STEPS_FORWARD_END_STOP 960
 #define NECK_STEPS_BEHIND_END_STOP 380
 
@@ -32,8 +39,11 @@ private:
 
 protected:
   AccelStepper *stepper;
+  float min_speed;
+  float max_speed;
   void (Stepper::*run_func)() = NULL;
   void moveTo_run();
+  virtual void _moveTo(long target, long speed) = 0;
 
 public:
   Stepper(
@@ -41,11 +51,13 @@ public:
       uint8_t dir_pin,
       uint8_t stop_pin,
       uint8_t enable_pin,
+      float min_speed,
+      float max_speed,
       bool reverse_orientation);
   long getCurrentPosition();
   void reset();
   void run();
-  virtual void moveTo(long target, long speed) = 0;
+  void moveTo(long target, long speed);
 };
 
 Stepper::Stepper(
@@ -53,9 +65,13 @@ Stepper::Stepper(
     uint8_t dir_pin,
     uint8_t stop_pin,
     uint8_t enable_pin,
+    float min_speed,
+    float max_speed,
     bool reverse_orientation)
     : stepper(new AccelStepper(AccelStepper::DRIVER, step_pin, dir_pin)),
-      stop_pin(stop_pin) {
+      stop_pin(stop_pin),
+      min_speed(min_speed),
+      max_speed(max_speed) {
   pinMode(stop_pin, INPUT);
   stepper->setEnablePin(enable_pin);
   stepper->setPinsInverted(reverse_orientation, false, true);
@@ -104,6 +120,15 @@ void Stepper::run() {
   }
 }
 
+void Stepper::moveTo(long target, long speed) {
+  if (speed > max_speed) {
+    speed = max_speed;
+  } else if (speed < min_speed) {
+    speed = min_speed;
+  }
+  _moveTo(target, speed);
+}
+
 long Stepper::getCurrentPosition() {
   return stepper->currentPosition();
 }
@@ -113,16 +138,20 @@ private:
   uint8_t clockwise_bound;
   uint8_t anticlockwise_bound;
 
+protected:
+  void _moveTo(long target, long speed);
+
 public:
   BoundedStepper(
       uint8_t step_pin,
       uint8_t dir_pin,
       uint8_t stop_pin,
       uint8_t enable_pin,
+      float min_speed,
+      float max_speed,
       bool reverse_orientation,
       uint8_t clockwise_bound,
       uint8_t anticlockwise_bound);
-  void moveTo(long target, long speed);
 };
 
 BoundedStepper::BoundedStepper(
@@ -130,15 +159,17 @@ BoundedStepper::BoundedStepper(
     uint8_t dir_pin,
     uint8_t stop_pin,
     uint8_t enable_pin,
+    float min_speed,
+    float max_speed,
     bool reverse_orientation,
     uint8_t clockwise_bound,
     uint8_t anticlockwise_bound)
-    : Stepper(step_pin, dir_pin, stop_pin, enable_pin, reverse_orientation),
+    : Stepper(step_pin, dir_pin, stop_pin, enable_pin, min_speed, max_speed, reverse_orientation),
       clockwise_bound(clockwise_bound),
       anticlockwise_bound(anticlockwise_bound) {
 }
 
-void BoundedStepper::moveTo(long target, long speed) {
+void BoundedStepper::_moveTo(long target, long speed) {
   if (target > clockwise_bound) {
     target = clockwise_bound;
   } else if (target < (-anticlockwise_bound)) {
@@ -155,15 +186,19 @@ class UnboundedStepper : public Stepper {
 private:
   uint8_t steps_per_revolution;
 
+protected:
+  void _moveTo(long target, long speed);
+
 public:
   UnboundedStepper(
       uint8_t step_pin,
       uint8_t dir_pin,
       uint8_t stop_pin,
       uint8_t enable_pin,
+      float min_speed,
+      float max_speed,
       bool reverse_orientation,
       uint8_t steps_per_revolution);
-  void moveTo(long target, long speed);
 };
 
 UnboundedStepper::UnboundedStepper(
@@ -171,13 +206,15 @@ UnboundedStepper::UnboundedStepper(
     uint8_t dir_pin,
     uint8_t stop_pin,
     uint8_t enable_pin,
+    float min_speed,
+    float max_speed,
     bool reverse_orientation,
     uint8_t steps_per_revolution)
-    : Stepper(step_pin, dir_pin, stop_pin, enable_pin, reverse_orientation),
+    : Stepper(step_pin, dir_pin, stop_pin, enable_pin, min_speed, max_speed, reverse_orientation),
       steps_per_revolution(steps_per_revolution) {
 }
 
-void UnboundedStepper::moveTo(long target, long speed) {
+void UnboundedStepper::_moveTo(long target, long speed) {
   stepper->setMaxSpeed(speed);
   stepper->setSpeed(speed);
   stepper->setAcceleration(speed);
@@ -190,6 +227,8 @@ BoundedStepper *neck = new BoundedStepper(
     DIR_PIN_NECK,
     END_STOP_PIN_NECK,
     ENABLE_PIN,
+    MIN_SPEED_NECK,
+    MAX_SPEED_NECK,
     true,
     NECK_STEPS_FORWARD_END_STOP,
     NECK_STEPS_BEHIND_END_STOP);
@@ -199,6 +238,8 @@ UnboundedStepper *left_arm = new UnboundedStepper(
     DIR_PIN_LEFT,
     END_STOP_PIN_LEFT,
     ENABLE_PIN,
+    MIN_SPEED_LEFT,
+    MAX_SPEED_LEFT,
     true,
     STEPS_PER_REV_LEFT);
 
@@ -207,7 +248,9 @@ UnboundedStepper *right_arm = new UnboundedStepper(
     DIR_PIN_RIGHT,
     END_STOP_PIN_RIGHT,
     ENABLE_PIN,
-    true,
+    MIN_SPEED_RIGHT,
+    MAX_SPEED_RIGHT,
+    false,
     STEPS_PER_REV_RIGHT);
 
 ros::NodeHandle *ros_handle = new ros::NodeHandle();
@@ -233,9 +276,9 @@ void move_cb(const csjbot_alice::JointMovement &msg) {
   }
 }
 
-/*std_msgs::Int64MultiArray joint_states;
+csjbot_alice::JointPosition joint_states;
 ros::Publisher *joint_state_publisher =
-    new ros::Publisher("csjbot_alice_joint_states", &joint_states);*/
+    new ros::Publisher("joint_states", &joint_states);
 
 ros::Subscriber<csjbot_alice::JointMovement> *move_to_subscriber =
     new ros::Subscriber<csjbot_alice::JointMovement>("move_joints", &move_cb);
@@ -245,25 +288,22 @@ void setup() {
   ros_handle->initNode();
   ros_handle->subscribe(*reset_subscriber);
   ros_handle->subscribe(*move_to_subscriber);
-  //ros_handle->advertise(*joint_state_publisher);
+  ros_handle->advertise(*joint_state_publisher);
 }
 
 unsigned long next_publish_time = 0;
-int64_t joint_positions[3];
 
 void loop() {
   ros_handle->spinOnce();
   neck->run();
   left_arm->run();
   right_arm->run();
-  /*unsigned long ctime = millis();
+  unsigned long ctime = millis();
   if (ctime >= next_publish_time) {
     next_publish_time = ctime + PUBLISH_RATE;
-    joint_states.data_length = 3;
-    joint_positions[0] = neck->getCurrentPosition();
-    joint_positions[1] = left_arm->getCurrentPosition();
-    joint_positions[2] = right_arm->getCurrentPosition();
-    joint_states.data = joint_positions;
+    joint_states.left_arm = left_arm->getCurrentPosition();
+    joint_states.right_arm = right_arm->getCurrentPosition();
+    joint_states.neck = neck->getCurrentPosition();
     joint_state_publisher->publish(&joint_states);
-  }*/
+  }
 }
