@@ -2,8 +2,8 @@
 
 An Arduino application for an Arduino Uno with CNC shield that can control the
 neck and arm stepper motors in a customised
-[CSJBOT Alice robot](https://en.csjbot.com/content/12/1289.html)
-. The application uses [rosserial](https://wiki.ros.org/rosserial) to connect
+[CSJBOT Alice](https://en.csjbot.com/content/12/1289.html) robot.
+The application uses [rosserial](https://wiki.ros.org/rosserial) to connect
 to the ROS master.
 
 ## Subscribers
@@ -35,3 +35,13 @@ The left and right arms can rotate continuously, with 10,000 steps for a
 complete rotation. 3000 steps per second seems to be a reasonable speed.
 
 Subsequent messages published on this topic will override prior messages.
+
+## Acknowledgements
+This work was developed as part of the the [Robots Mediating Interaction project][1],
+ supported by [UK Engineering and Physical Sciences Research Council][2]
+(EPSRC) through [Horizon: Trusted Data-Driven Products][3] ([EP/T022493/1][4]).
+
+[1]: https://www.horizon.ac.uk/project/robots-mediating-interaction/
+[2]: https://www.ukri.org/councils/epsrc/
+[3]: https://www.horizon.ac.uk/
+[4]: https://gtr.ukri.org/projects?ref=EP%2FT022493%2F1
