@@ -31,6 +31,12 @@
 
 #define PUBLISH_RATE 1000
 
+/*
+ * TODO: Switch to an Arduino Mega.
+ * TODO: Enable the position publisher.
+ * TODO: Implement 'stop' functionality.
+ */
+
 class Stepper {
 private:
   uint8_t stop_pin;
@@ -135,8 +141,8 @@ long Stepper::getCurrentPosition() {
 
 class BoundedStepper : public Stepper {
 private:
-  uint8_t clockwise_bound;
-  uint8_t anticlockwise_bound;
+  long clockwise_bound;
+  long anticlockwise_bound;
 
 protected:
   void _moveTo(long target, long speed);
@@ -150,8 +156,8 @@ public:
       float min_speed,
       float max_speed,
       bool reverse_orientation,
-      uint8_t clockwise_bound,
-      uint8_t anticlockwise_bound);
+      long clockwise_bound,
+      long anticlockwise_bound);
 };
 
 BoundedStepper::BoundedStepper(
@@ -162,8 +168,8 @@ BoundedStepper::BoundedStepper(
     float min_speed,
     float max_speed,
     bool reverse_orientation,
-    uint8_t clockwise_bound,
-    uint8_t anticlockwise_bound)
+    long clockwise_bound,
+    long anticlockwise_bound)
     : Stepper(step_pin, dir_pin, stop_pin, enable_pin, min_speed, max_speed, reverse_orientation),
       clockwise_bound(clockwise_bound),
       anticlockwise_bound(anticlockwise_bound) {
@@ -172,8 +178,8 @@ BoundedStepper::BoundedStepper(
 void BoundedStepper::_moveTo(long target, long speed) {
   if (target > clockwise_bound) {
     target = clockwise_bound;
-  } else if (target < (-anticlockwise_bound)) {
-    target = -anticlockwise_bound;
+  } else if (target < -anticlockwise_bound) {
+    target = anticlockwise_bound;
   }
   stepper->setMaxSpeed(speed);
   stepper->setSpeed(speed);
@@ -276,9 +282,9 @@ void move_cb(const csjbot_alice::JointMovement &msg) {
   }
 }
 
-csjbot_alice::JointPosition joint_states;
+/*csjbot_alice::JointPosition joint_states;
 ros::Publisher *joint_state_publisher =
-    new ros::Publisher("joint_states", &joint_states);
+    new ros::Publisher("joint_states", &joint_states);*/
 
 ros::Subscriber<csjbot_alice::JointMovement> *move_to_subscriber =
     new ros::Subscriber<csjbot_alice::JointMovement>("move_joints", &move_cb);
@@ -288,7 +294,11 @@ void setup() {
   ros_handle->initNode();
   ros_handle->subscribe(*reset_subscriber);
   ros_handle->subscribe(*move_to_subscriber);
-  ros_handle->advertise(*joint_state_publisher);
+  /*
+   * The Arduino Uno does not have enough memory for this publisher
+   * in addition to the subscribers so it has been disabled for now.
+   */
+  //ros_handle->advertise(*joint_state_publisher);
 }
 
 unsigned long next_publish_time = 0;
@@ -299,11 +309,11 @@ void loop() {
   left_arm->run();
   right_arm->run();
   unsigned long ctime = millis();
-  if (ctime >= next_publish_time) {
+  /*if (ctime >= next_publish_time) {
     next_publish_time = ctime + PUBLISH_RATE;
     joint_states.left_arm = left_arm->getCurrentPosition();
     joint_states.right_arm = right_arm->getCurrentPosition();
     joint_states.neck = neck->getCurrentPosition();
     joint_state_publisher->publish(&joint_states);
-  }
+  }*/
 }
